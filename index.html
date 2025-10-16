@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Financial News</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .tab-active {
+            border-bottom-color: #3b82f6;
+            color: #3b82f6;
+        }
+        .calendar-day {
+            min-height: 120px;
+        }
+        .indicator {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+        .indicator-green { background-color: #22c55e; }
+        .indicator-yellow { background-color: #f59e0b; }
+        .indicator-red { background-color: #ef4444; }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
+
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-800 dark:text-white">Market Pulse</h1>
+            <p class="text-lg text-gray-600 dark:text-gray-400 mt-2">Your real-time source for global financial intelligence</p>
+        </header>
+
+        <!-- Tabs -->
+        <div class="mb-8 border-b border-gray-200 dark:border-gray-700">
+            <nav class="flex flex-wrap justify-center -mb-px space-x-6" aria-label="Tabs">
+                <button class="tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300" data-tab="news">Top News</button>
+                <button class="tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300" data-tab="calendar">Events Calendar</button>
+                <button class="tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300" data-tab="screener">Stock Screener</button>
+                <button class="tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300" data-tab="analysis">Company Analysis</button>
+            </nav>
+        </div>
+
+        <main id="main-content">
+            <!-- News Section -->
+            <div id="news-content" class="tab-content">
+                <div id="news-loader" class="flex justify-center items-center h-64"><div class="loader"></div></div>
+                <div id="news-errorMessage" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative text-center" role="alert"></div>
+                <div id="news-container" class="grid gap-8 md:grid-cols-2 lg:grid-cols-3"></div>
+                <div id="sources-container" class="mt-16 pt-8 border-t border-gray-200 dark:border-gray-700">
+                     <h2 class="text-2xl font-semibold mb-4 text-center text-gray-700 dark:text-gray-300">News Sources</h2>
+                     <div id="sources-list" class="flex flex-wrap justify-center gap-4"></div>
+                </div>
+            </div>
+
+            <!-- Calendar Section -->
+            <div id="calendar-content" class="tab-content hidden">
+                <div id="calendar-loader" class="flex justify-center items-center h-64"><div class="loader"></div></div>
+                <div id="calendar-errorMessage" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative text-center" role="alert"></div>
+                <div id="calendar-container" class="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
+                    <div class="flex items-center justify-between mb-4">
+                        <button id="prev-month" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600">&lt;</button>
+                        <h2 id="month-year" class="text-xl md:text-2xl font-bold"></h2>
+                        <button id="next-month" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600">&gt;</button>
+                    </div>
+                    <div id="calendar-grid" class="grid grid-cols-7 gap-1 text-center"></div>
+                </div>
+            </div>
+
+            <!-- Stock Screener Section -->
+            <div id="screener-content" class="tab-content hidden">
+                 <div id="screener-loader" class="flex justify-center items-center h-64"><div class="loader"></div></div>
+                <div id="screener-errorMessage" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative text-center" role="alert"></div>
+                <!-- Filters -->
+                <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md mb-8 flex flex-wrap gap-4 items-end">
+                    <div>
+                        <label for="market-cap" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Market Cap (min)</label>
+                        <select id="market-cap" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                            <option value="0">Any</option>
+                            <option value="1000000000">$1 Billion</option>
+                            <option value="10000000000">$10 Billion</option>
+                            <option value="100000000000">$100 Billion</option>
+                            <option value="1000000000000">$1 Trillion</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="pe-ratio" class="block text-sm font-medium text-gray-700 dark:text-gray-300">P/E Ratio (max)</label>
+                        <input type="number" id="pe-ratio" placeholder="e.g., 25" class="mt-1 block w-full pl-3 pr-3 py-2 text-base border-gray-300 dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                    </div>
+                    <div>
+                        <label for="catalyst-trigger" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Upcoming Catalyst</label>
+                        <select id="catalyst-trigger" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                            <option value="any">Any</option>
+                            <option value="Earnings Call (Next 30 Days)">Earnings Call (Next 30 Days)</option>
+                            <option value="Potential FDA Decision (Next 30 Days)">Potential FDA Decision (Next 30 Days)</option>
+                            <option value="Undervalued with recent positive news">Undervalued with Positive News</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="region-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Region</label>
+                        <select id="region-filter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                            <option value="global">Global</option>
+                            <option value="nordic">Nordic Region</option>
+                        </select>
+                    </div>
+                    <button id="filter-stocks" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Apply Filters</button>
+                </div>
+                <!-- Results Table -->
+                <div class="overflow-x-auto">
+                    <table id="screener-table" class="min-w-full bg-white dark:bg-gray-800 rounded-lg shadow-md">
+                        <thead class="bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Company</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Symbol</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Market Cap</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">P/E Ratio</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Upcoming Catalyst</th>
+                            </tr>
+                        </thead>
+                        <tbody id="screener-results" class="divide-y divide-gray-200 dark:divide-gray-700">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Company Analysis Section -->
+            <div id="analysis-content" class="tab-content hidden">
+                <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md mb-8 flex flex-wrap gap-4 items-center">
+                    <input type="text" id="company-ticker-input" placeholder="Enter Ticker (e.g., AAPL)" class="flex-grow block w-full pl-3 pr-3 py-2 text-base border-gray-300 dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                    <button id="search-company" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Search</button>
+                </div>
+                <div id="analysis-loader" class="hidden justify-center items-center h-64"><div class="loader"></div></div>
+                <div id="analysis-errorMessage" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative text-center" role="alert"></div>
+                <div id="analysis-results-container" class="hidden bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                    <!-- Results will be injected here -->
+                </div>
+                 <div id="analysis-placeholder" class="text-center py-16 text-gray-500 dark:text-gray-400">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium">Search for a Company</h3>
+                    <p class="mt-1 text-sm">Enter a stock ticker symbol to get a detailed analysis.</p>
+                </div>
+            </div>
+        </main>
+        
+        <footer class="text-center mt-12 text-gray-500 dark:text-gray-400">
+            <p>&copy; 2025 Market Pulse. All Rights Reserved.</p>
+        </footer>
+    </div>
+
+    <script>
+        const API_KEY = ""; // Your API Key if needed, otherwise leave empty
+        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
+        const SYSTEM_PROMPT_ANALYST = `You are a world-class financial news analyst. Your task is to find and summarize the most significant global financial news stories. Provide a neutral, fact-based summary for each.`;
+
+        // --- DOM Elements ---
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        // News Elements
+        const newsContainer = document.getElementById('news-container');
+        const newsLoader = document.getElementById('news-loader');
+        const newsErrorMessage = document.getElementById('news-errorMessage');
+        const sourcesList = document.getElementById('sources-list');
+        const sourcesContainer = document.getElementById('sources-container');
+
+        // Calendar Elements
+        const calendarLoader = document.getElementById('calendar-loader');
+        const calendarErrorMessage = document.getElementById('calendar-errorMessage');
+        const calendarContainer = document.getElementById('calendar-container');
+        const monthYearEl = document.getElementById('month-year');
+        const calendarGrid = document.getElementById('calendar-grid');
+        const prevMonthBtn = document.getElementById('prev-month');
+        const nextMonthBtn = document.getElementById('next-month');
+
+        // Screener Elements
+        const screenerLoader = document.getElementById('screener-loader');
+        const screenerErrorMessage = document.getElementById('screener-errorMessage');
+        const screenerResults = document.getElementById('screener-results');
+        const filterBtn = document.getElementById('filter-stocks');
+
+        // Analysis Elements
+        const analysisLoader = document.getElementById('analysis-loader');
+        const analysisErrorMessage = document.getElementById('analysis-errorMessage');
+        const analysisResultsContainer = document.getElementById('analysis-results-container');
+        const searchCompanyBtn = document.getElementById('search-company');
+        const companyTickerInput = document.getElementById('company-ticker-input');
+        const analysisPlaceholder = document.getElementById('analysis-placeholder');
+
+
+        let currentDate = new Date();
+        let financialEvents = [];
+
+        // --- Core Functions ---
+        async function fetchWithExponentialBackoff(url, options, maxRetries = 5, initialDelay = 1000) {
+            let delay = initialDelay;
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.ok) return response;
+                    if (response.status >= 400 && response.status < 500) throw new Error(`Client Error: ${response.status} ${response.statusText}`);
+                } catch (error) {
+                    if (i === maxRetries - 1) throw error;
+                    console.warn(`Request failed. Retrying in ${delay}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    delay *= 2;
+                }
+            }
+        }
+
+        async function callGeminiAPI(userQuery, systemPrompt) {
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                tools: [{ "google_search": {} }],
+                systemInstruction: { parts: [{ text: systemPrompt }] }
+            };
+            const response = await fetchWithExponentialBackoff(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+            const candidate = result.candidates?.[0];
+            if (!candidate || !candidate.content?.parts?.[0]?.text) {
+                throw new Error("Invalid response structure from API.");
+            }
+            return candidate;
+        }
+
+        function parseJsonResponse(text) {
+             try {
+                // The model might sometimes wrap the JSON in markdown backticks.
+                const cleanText = text.replace(/^```json\s*|```$/g, '').trim();
+                return JSON.parse(cleanText);
+            } catch (parseError) {
+                console.error("Failed to parse JSON from API response:", text);
+                throw new Error("The API response was not valid JSON.");
+            }
+        }
+
+        // --- Tab Switching Logic ---
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const target = tab.getAttribute('data-tab');
+
+                tabs.forEach(t => t.classList.remove('tab-active', 'text-blue-600', 'dark:text-blue-500'));
+                tab.classList.add('tab-active', 'text-blue-600', 'dark:text-blue-500');
+
+                tabContents.forEach(content => content.classList.add('hidden'));
+                document.getElementById(`${target}-content`).classList.remove('hidden');
+
+                // Load content if it's the first time viewing the tab
+                if (target === 'calendar' && financialEvents.length === 0) fetchFinancialEvents();
+                if (target === 'screener' && screenerResults.innerHTML.trim() === '') fetchStockData();
+            });
+        });
+
+        // --- News Section Logic ---
+        async function fetchFinancialNews() {
+            newsLoader.style.display = 'flex';
+            newsErrorMessage.classList.add('hidden');
+            newsContainer.innerHTML = '';
+            sourcesList.innerHTML = '';
+            sourcesContainer.style.display = 'none';
+
+            const USER_QUERY_NEWS = "Scan the internet for the top 5 most important global financial news stories right now. For each story, provide a concise but descriptive headline, a one-paragraph summary, the primary source name, and a direct URL to the article. Format the entire response as a single, valid JSON array of objects with the following keys: headline, summary, sourceName, sourceURL.";
+            
+            try {
+                const candidate = await callGeminiAPI(USER_QUERY_NEWS, SYSTEM_PROMPT_ANALYST);
+                const newsData = parseJsonResponse(candidate.content.parts[0].text);
+                displayNews(newsData);
+
+                const groundingMetadata = candidate.groundingMetadata;
+                if (groundingMetadata && groundingMetadata.groundingAttributions) {
+                    const sources = groundingMetadata.groundingAttributions.map(attr => ({ uri: attr.web?.uri, title: attr.web?.title })).filter(s => s.uri && s.title);
+                    displaySources(sources);
+                }
+            } catch (error) {
+                console.error("Error fetching financial news:", error);
+                newsErrorMessage.innerHTML = `<strong>Error:</strong> Could not fetch the latest news. Please try again later.`;
+                newsErrorMessage.classList.remove('hidden');
+            } finally {
+                newsLoader.style.display = 'none';
+            }
+        }
+        
+        function displayNews(articles) {
+            articles.forEach(article => {
+                const articleElement = document.createElement('div');
+                articleElement.className = 'bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden transform hover:scale-105 transition-transform duration-300';
+                articleElement.innerHTML = `
+                    <div class="p-6">
+                        <p class="text-sm text-blue-500 dark:text-blue-400 font-semibold">${article.sourceName || 'Unknown Source'}</p>
+                        <h2 class="text-xl font-bold my-2">${article.headline || 'No Headline'}</h2>
+                        <p class="text-gray-600 dark:text-gray-300">${article.summary || 'No summary.'}</p>
+                        ${article.sourceURL ? `
+                        <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                            <a href="${article.sourceURL}" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold transition-colors duration-200">
+                                Read Full Story &rarr;
+                            </a>
+                        </div>
+                        ` : ''}
+                    </div>`;
+                newsContainer.appendChild(articleElement);
+            });
+        }
+
+        function displaySources(sources) {
+            if (!sources || sources.length === 0) return;
+            sourcesContainer.style.display = 'block';
+            const uniqueSources = Array.from(new Map(sources.map(item => [item['uri'], item])).values());
+            uniqueSources.forEach(source => {
+                 const sourceElement = document.createElement('a');
+                 sourceElement.href = source.uri;
+                 sourceElement.target = '_blank';
+                 sourceElement.rel = 'noopener noreferrer';
+                 sourceElement.className = 'bg-gray-200 dark:bg-gray-700 px-3 py-1 rounded-full text-sm hover:bg-blue-500 hover:text-white transition-colors';
+                 sourceElement.textContent = source.title;
+                 sourcesList.appendChild(sourceElement);
+            });
+        }
+
+        // --- Calendar Section Logic ---
+        async function fetchFinancialEvents() {
+            calendarLoader.style.display = 'flex';
+            calendarErrorMessage.classList.add('hidden');
+            const USER_QUERY_CALENDAR = `List the most important global financial events for the next 90 days, including FOMC meetings, major economic data releases (like CPI, GDP), and key corporate earnings reports. For each, provide the date (in YYYY-MM-DD format), a short description, and an event type (e.g., 'Central Bank', 'Economics', 'Earnings'). Format as a valid JSON array.`;
+            try {
+                const candidate = await callGeminiAPI(USER_QUERY_CALENDAR, "You are a financial data provider.");
+                financialEvents = parseJsonResponse(candidate.content.parts[0].text);
+                renderCalendar();
+            } catch (error) {
+                console.error("Error fetching calendar events:", error);
+                calendarErrorMessage.innerHTML = `<strong>Error:</strong> Could not fetch financial events.`;
+                calendarErrorMessage.classList.remove('hidden');
+            } finally {
+                calendarLoader.style.display = 'none';
+            }
+        }
+        
+        function renderCalendar() {
+            calendarGrid.innerHTML = '';
+            const month = currentDate.getMonth();
+            const year = currentDate.getFullYear();
+            monthYearEl.textContent = `${currentDate.toLocaleString('default', { month: 'long' })} ${year}`;
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            dayHeaders.forEach(day => {
+                const dayEl = document.createElement('div');
+                dayEl.className = 'font-bold text-sm text-gray-600 dark:text-gray-400';
+                dayEl.textContent = day;
+                calendarGrid.appendChild(dayEl);
+            });
+
+            for (let i = 0; i < firstDay; i++) {
+                calendarGrid.appendChild(document.createElement('div'));
+            }
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayEl = document.createElement('div');
+                dayEl.className = 'calendar-day border-t border-gray-200 dark:border-gray-700 p-2 text-left';
+                dayEl.innerHTML = `<span class="text-gray-800 dark:text-gray-200">${day}</span>`;
+                
+                const dayEvents = financialEvents.filter(event => {
+                    const eventDate = new Date(event.date + 'T00:00:00'); // Ensure local timezone
+                    return eventDate.getFullYear() === year && eventDate.getMonth() === month && eventDate.getDate() === day;
+                });
+
+                if (dayEvents.length > 0) {
+                    const eventsList = document.createElement('ul');
+                    eventsList.className = 'text-xs mt-1 space-y-1';
+                    dayEvents.forEach(event => {
+                        const eventItem = document.createElement('li');
+                        let color = 'bg-gray-400';
+                        if (event.type?.toLowerCase().includes('bank')) color = 'bg-red-500';
+                        if (event.type?.toLowerCase().includes('earn')) color = 'bg-blue-500';
+                        if (event.type?.toLowerCase().includes('econ')) color = 'bg-green-500';
+                        eventItem.className = 'p-1 rounded text-white truncate';
+                        eventItem.style.backgroundColor = color;
+                        eventItem.textContent = event.description;
+                        eventItem.title = event.description;
+                        eventsList.appendChild(eventItem);
+                    });
+                    dayEl.appendChild(eventsList);
+                }
+                calendarGrid.appendChild(dayEl);
+            }
+        }
+
+        prevMonthBtn.addEventListener('click', () => {
+            currentDate.setMonth(currentDate.getMonth() - 1);
+            renderCalendar();
+        });
+        nextMonthBtn.addEventListener('click', () => {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            renderCalendar();
+        });
+        
+        // --- Stock Screener Logic ---
+        async function fetchStockData(filters = {}) {
+            screenerLoader.style.display = 'flex';
+            screenerErrorMessage.classList.add('hidden');
+            screenerResults.innerHTML = '';
+
+            let queryParts = ["Find publicly traded companies"];
+            if (filters.region === 'nordic') {
+                queryParts.push("from the Nordic region (Sweden, Denmark, Norway, Finland, Iceland)");
+            } else {
+                queryParts.push("from various global sectors");
+            }
+
+            const financialFilters = [];
+            if (filters.marketCap) financialFilters.push(`market capitalization over $${(filters.marketCap / 1000000000).toFixed(0)} billion`);
+            if (filters.peRatio) financialFilters.push(`P/E ratio under ${filters.peRatio}`);
+            
+            if(financialFilters.length > 0){
+                queryParts.push("with a " + financialFilters.join(' and a '));
+            }
+
+            if (filters.catalyst) {
+                queryParts.push(`and an upcoming catalyst related to '${filters.catalyst}'`);
+            }
+
+            let finalQuery = queryParts.join(' ');
+            if (Object.keys(filters).length === 0) {
+                finalQuery = "List 20 interesting publicly traded companies from various global sectors"
+            }
+            
+            const USER_QUERY_SCREENER = `${finalQuery}. For each company, provide its name, ticker symbol, stock exchange, market capitalization (as a number), P/E ratio (as a number), and a short description of the upcoming catalyst. Format as a valid JSON array.`;
+            
+            try {
+                const candidate = await callGeminiAPI(USER_QUERY_SCREENER, "You are a stock data provider.");
+                const stockData = parseJsonResponse(candidate.content.parts[0].text);
+                displayStockData(stockData);
+            } catch (error) {
+                console.error("Error fetching stock data:", error);
+                screenerErrorMessage.innerHTML = `<strong>Error:</strong> Could not fetch stock data. The model may be unable to fulfill this specific request.`;
+                screenerErrorMessage.classList.remove('hidden');
+            } finally {
+                screenerLoader.style.display = 'none';
+            }
+        }
+
+        function displayStockData(stocks) {
+            screenerResults.innerHTML = ''; // Clear previous results
+            if (!stocks || stocks.length === 0) {
+                 const row = screenerResults.insertRow();
+                 const cell = row.insertCell();
+                 cell.colSpan = 5;
+                 cell.textContent = 'No companies found matching your criteria.';
+                 cell.className = 'px-6 py-4 text-center';
+                 return;
+            }
+            stocks.forEach(stock => {
+                const row = screenerResults.insertRow();
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap"><div class="font-medium">${stock.name}</div></td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${stock.ticker} (${stock.exchange})</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">${stock.market_capitalization ? `$${(stock.market_capitalization / 1000000000).toFixed(2)}B` : 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">${stock.pe_ratio || 'N/A'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${stock.catalyst || 'N/A'}</td>
+                `;
+            });
+        }
+
+        filterBtn.addEventListener('click', () => {
+            const marketCap = document.getElementById('market-cap').value;
+            const peRatio = document.getElementById('pe-ratio').value;
+            const catalyst = document.getElementById('catalyst-trigger').value;
+            const region = document.getElementById('region-filter').value;
+            const filters = {};
+            if (marketCap && marketCap !== "0") filters.marketCap = parseInt(marketCap);
+            if (peRatio) filters.peRatio = parseFloat(peRatio);
+            if (catalyst && catalyst !== "any") filters.catalyst = catalyst;
+            if (region && region !== "global") filters.region = region;
+            fetchStockData(filters);
+        });
+
+        // --- Company Analysis Logic ---
+        async function fetchCompanyAnalysis(ticker) {
+            analysisLoader.style.display = 'flex';
+            analysisErrorMessage.classList.add('hidden');
+            analysisResultsContainer.classList.add('hidden');
+            analysisPlaceholder.classList.add('hidden');
+
+            const USER_QUERY_ANALYSIS = `
+                Provide a detailed financial analysis for the company with ticker symbol ${ticker}.
+                The output must be a single, valid JSON object with the following structure:
+                {
+                  "companyName": "...",
+                  "ticker": "...",
+                  "exchange": "...",
+                  "profile": "A brief explanation of what the company does and how it operates.",
+                  "keyFigures": {
+                    "marketCap": "...",
+                    "peRatio": "...",
+                    "evEbit": "...",
+                    "eps": "..."
+                  },
+                  "valuationAnalysis": "A paragraph analyzing its current valuation (P/E, etc.) compared to its historical trading levels (e.g., 5-year average).",
+                  "valuationIndicator": "Based on your analysis, classify the stock as 'Green' (undervalued), 'Yellow' (fairly valued), or 'Red' (overvalued)."
+                }
+            `;
+
+            try {
+                const candidate = await callGeminiAPI(USER_QUERY_ANALYSIS, "You are a senior equity research analyst.");
+                const analysisData = parseJsonResponse(candidate.content.parts[0].text);
+                displayCompanyAnalysis(analysisData);
+            } catch(error) {
+                 console.error("Error fetching company analysis:", error);
+                analysisErrorMessage.innerHTML = `<strong>Error:</strong> Could not fetch analysis for ${ticker}. Please ensure the ticker is correct.`;
+                analysisErrorMessage.classList.remove('hidden');
+            } finally {
+                analysisLoader.style.display = 'none';
+            }
+        }
+
+        function displayCompanyAnalysis(data) {
+            const indicatorColor = {
+                'Green': 'indicator-green',
+                'Yellow': 'indicator-yellow',
+                'Red': 'indicator-red'
+            }[data.valuationIndicator] || 'bg-gray-400';
+
+            const indicatorText = {
+                 'Green': 'Low',
+                'Yellow': 'Fair',
+                'Red': 'High'
+            }[data.valuationIndicator] || 'N/A';
+
+            analysisResultsContainer.innerHTML = `
+                <div class="flex flex-col md:flex-row gap-8">
+                    <!-- Left Column: Profile & Analysis -->
+                    <div class="flex-grow">
+                        <h2 class="text-3xl font-bold">${data.companyName} (${data.ticker})</h2>
+                        <p class="text-md text-gray-500 dark:text-gray-400 mb-4">${data.exchange}</p>
+                        
+                        <h3 class="text-xl font-semibold mt-6 mb-2">Company Profile</h3>
+                        <p class="text-gray-600 dark:text-gray-300">${data.profile}</p>
+
+                        <h3 class="text-xl font-semibold mt-6 mb-2">Valuation Analysis</h3>
+                        <p class="text-gray-600 dark:text-gray-300">${data.valuationAnalysis}</p>
+                    </div>
+
+                    <!-- Right Column: Key Figures & Indicator -->
+                    <div class="md:w-1/3 flex-shrink-0">
+                        <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
+                            <h3 class="text-lg font-semibold mb-3 text-center">Valuation Indicator</h3>
+                            <div class="flex justify-center items-center mb-4">
+                               <div class="indicator ${indicatorColor}">${indicatorText}</div>
+                            </div>
+                            <p class="text-xs text-center text-gray-500 dark:text-gray-400">Based on historical valuation metrics.</p>
+                        </div>
+                        <div class="mt-6">
+                             <h3 class="text-lg font-semibold mb-3">Key Figures</h3>
+                             <ul class="space-y-2 text-sm">
+                                <li class="flex justify-between"><span>Market Cap:</span> <span class="font-medium">${data.keyFigures.marketCap}</span></li>
+                                <li class="flex justify-between"><span>P/E Ratio:</span> <span class="font-medium">${data.keyFigures.peRatio}</span></li>
+                                <li class="flex justify-between"><span>EV/EBIT:</span> <span class="font-medium">${data.keyFigures.evEbit}</span></li>
+                                <li class="flex justify-between"><span>EPS:</span> <span class="font-medium">${data.keyFigures.eps}</span></li>
+                             </ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+            analysisResultsContainer.classList.remove('hidden');
+        }
+
+        searchCompanyBtn.addEventListener('click', () => {
+            const ticker = companyTickerInput.value.trim().toUpperCase();
+            if (ticker) {
+                fetchCompanyAnalysis(ticker);
+            }
+        });
+
+        companyTickerInput.addEventListener('keyup', (event) => {
+             if (event.key === 'Enter') {
+                searchCompanyBtn.click();
+            }
+        });
+
+
+        // --- Initial Load ---
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelector('.tab[data-tab="news"]').click(); // Activate the news tab by default
+            fetchFinancialNews();
+        });
+    </script>
+</body>
+</html>
+
+
