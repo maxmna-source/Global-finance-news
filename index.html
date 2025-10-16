@@ -158,7 +158,7 @@
                 </div>
                  <div id="analysis-placeholder" class="text-center py-16 text-gray-500 dark:text-gray-400">
                     <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 70 11-14 0 7 7 0 0114 0z"></path>
                     </svg>
                     <h3 class="mt-2 text-sm font-medium">Search for a Company</h3>
                     <p class="mt-1 text-sm">Enter a stock ticker symbol to get a detailed analysis.</p>
@@ -172,7 +172,7 @@
     </div>
 
     <script>
-        const API_KEY = AIzaSyAXkAxrOzdCcYSzlu8ZR3ldH1gVWcCH8Mk; // <-- IMPORTANT: Replace this text with the key you just copied
+        const API_KEY = "AIzaSyAXkAxrOzdCcYSzlu8ZR3ldH1gVWcCH8Mk"; // <-- IMPORTANT: Replace this text with the key you just copied
         const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
         const SYSTEM_PROMPT_ANALYST = `You are a world-class financial news analyst. Your task is to find and summarize the most significant global financial news stories. Provide a neutral, fact-based summary for each.`;
 
@@ -614,5 +614,4 @@
     </script>
 </body>
 </html>
-
 
