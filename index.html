@@ -289,13 +289,39 @@
                     if (response.ok) {
                         return response;
                     }
+
+                    // Handle rate limiting specifically
+                    if (response.status === 429) {
+                        console.warn("Rate limit exceeded. Retrying after suggested delay...");
+                        let retryDelay = delay; // Fallback to exponential backoff
+                        try {
+                            const errorBody = await response.json();
+                            const retryInfo = errorBody.error?.details?.find(d => d['@type'] === 'type.googleapis.com/google.rpc.RetryInfo');
+                            if (retryInfo?.retryDelay) {
+                                const seconds = parseInt(retryInfo.retryDelay.replace('s', ''), 10);
+                                if (!isNaN(seconds)) {
+                                    retryDelay = seconds * 1000; // Convert to ms
+                                }
+                            }
+                        } catch (e) {
+                            console.warn("Could not parse 429 error response for retry delay. Using exponential backoff.");
+                        }
+                        await new Promise(resolve => setTimeout(resolve, retryDelay + 500)); // Add a small buffer
+                        continue; // Continue to the next iteration of the loop
+                    }
+                    
+                    // Handle other client errors that are not rate limits
                     if (response.status >= 400 && response.status < 500) {
                         const errorText = await response.text();
                         throw new Error(`Client Error: ${response.status} - ${errorText}`);
                     }
+                    
+                    // Handle server errors
                     lastError = new Error(`Server Error: ${response.status}`);
+
                 } catch (error) {
                     lastError = error;
+                    // If it's a non-retryable client error, throw immediately.
                     if (error.message.startsWith('Client Error')) {
                         throw error; 
                     }
@@ -303,11 +329,12 @@
                 
                 console.warn(`Request failed. Retrying in ${delay}ms... (Attempt ${i + 1}/${maxRetries})`);
                 await new Promise(resolve => setTimeout(resolve, delay));
-                delay *= 2;
+                delay *= 2; // Regular exponential backoff for server errors
             }
 
             throw lastError || new Error("API request failed after all retries.");
         }
+
 
         async function callGeminiAPI(userQuery, systemPrompt) {
             const payload = {
@@ -772,10 +799,12 @@
         briefingCloseBtn.addEventListener('click', () => briefingModal.classList.add('hidden'));
 
         // --- Initial Load ---
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             document.querySelector('.tab[data-tab="news"]').click(); // Activate the news tab by default
-            fetchFinancialNews();
-            fetchDailyBriefing();
+            
+            // Stagger the initial calls to avoid hitting rate limits on page load.
+            await fetchDailyBriefing();
+            fetchFinancialNews(); // Don't need to await this one, let it run in the background
         });
     </script>
 </body>
