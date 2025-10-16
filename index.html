@@ -60,6 +60,7 @@
                 <button class="tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300" data-tab="calendar">Events Calendar</button>
                 <button class="tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300" data-tab="screener">Stock Screener</button>
                 <button class="tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300" data-tab="analysis">Company Analysis</button>
+                <button class="tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300" data-tab="predictions">Predictions</button>
             </nav>
         </div>
 
@@ -164,15 +165,63 @@
                     <p class="mt-1 text-sm">Enter a stock ticker symbol to get a detailed analysis.</p>
                 </div>
             </div>
+            
+            <!-- Predictions Section -->
+            <div id="predictions-content" class="tab-content hidden">
+                <div id="predictions-loader" class="flex justify-center items-center h-64"><div class="loader"></div></div>
+                <div id="predictions-errorMessage" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative text-center" role="alert"></div>
+                <div id="predictions-container" class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                     <!-- Predictions content will be injected here -->
+                </div>
+            </div>
         </main>
         
         <footer class="text-center mt-12 text-gray-500 dark:text-gray-400">
             <p>&copy; 2025 Market Pulse. All Rights Reserved.</p>
+            <p class="text-xs mt-2 max-w-2xl mx-auto">
+                Disclaimer: The information provided on this website is for informational purposes only and does not constitute financial advice, investment advice, trading advice, or any other sort of advice. You should not treat any of the website's content as such. Market Pulse does not recommend that any security should be bought, sold, or held by you. Please conduct your own due diligence and consult your financial advisor before making any investment decisions.
+            </p>
         </footer>
     </div>
 
+    <!-- Calendar Event Modal -->
+    <div id="calendar-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+        <div class="relative mx-auto p-5 border w-11/12 md:w-1/2 lg:w-1/3 shadow-lg rounded-md bg-white dark:bg-gray-800">
+            <div class="mt-3 text-center">
+                <h3 id="modal-title" class="text-lg leading-6 font-medium text-gray-900 dark:text-white"></h3>
+                <div id="modal-body" class="mt-4 px-4 py-3 text-left space-y-4">
+                    <!-- Event details will be injected here -->
+                </div>
+                <div class="items-center px-4 py-3">
+                    <button id="modal-close-btn" class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Daily Briefing Modal -->
+    <div id="briefing-modal" class="hidden fixed inset-0 bg-gray-800 bg-opacity-75 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+        <div class="relative mx-auto p-6 border w-11/12 md:w-2/3 lg:w-1/2 shadow-lg rounded-xl bg-white dark:bg-gray-900">
+             <div id="briefing-loader" class="flex justify-center items-center h-64"><div class="loader"></div></div>
+             <div id="briefing-content" class="hidden">
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Your Daily Financial Briefing</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">The single most important story right now.</p>
+                <div id="briefing-body" class="mt-4 text-left space-y-3 text-gray-800 dark:text-gray-200">
+                    <!-- Briefing content will be injected here -->
+                </div>
+                <div class="mt-6 text-right">
+                    <button id="briefing-close-btn" class="px-5 py-2 bg-blue-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                        Continue to Site
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
-        const API_KEY = "AIzaSyAXkAxrOzdCcYSzlu8ZR3ldH1gVWcCH8Mk"; // <-- IMPORTANT: Replace this text with the key you just copied
+        const API_KEY = "AIzaSyAXkAxrOzdCcYSzlu8ZR3ldH1gVWcCH8Mk";
         const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
         const SYSTEM_PROMPT_ANALYST = `You are a world-class financial news analyst. Your task is to find and summarize the most significant global financial news stories. Provide a neutral, fact-based summary for each.`;
 
@@ -195,6 +244,10 @@
         const calendarGrid = document.getElementById('calendar-grid');
         const prevMonthBtn = document.getElementById('prev-month');
         const nextMonthBtn = document.getElementById('next-month');
+        const calendarModal = document.getElementById('calendar-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalBody = document.getElementById('modal-body');
+        const modalCloseBtn = document.getElementById('modal-close-btn');
 
         // Screener Elements
         const screenerLoader = document.getElementById('screener-loader');
@@ -210,25 +263,50 @@
         const companyTickerInput = document.getElementById('company-ticker-input');
         const analysisPlaceholder = document.getElementById('analysis-placeholder');
 
+        // Predictions Elements
+        const predictionsLoader = document.getElementById('predictions-loader');
+        const predictionsErrorMessage = document.getElementById('predictions-errorMessage');
+        const predictionsContainer = document.getElementById('predictions-container');
+
+        // Briefing Modal Elements
+        const briefingModal = document.getElementById('briefing-modal');
+        const briefingLoader = document.getElementById('briefing-loader');
+        const briefingContent = document.getElementById('briefing-content');
+        const briefingBody = document.getElementById('briefing-body');
+        const briefingCloseBtn = document.getElementById('briefing-close-btn');
 
         let currentDate = new Date();
         let financialEvents = [];
 
         // --- Core Functions ---
         async function fetchWithExponentialBackoff(url, options, maxRetries = 5, initialDelay = 1000) {
+            let lastError;
             let delay = initialDelay;
+
             for (let i = 0; i < maxRetries; i++) {
                 try {
                     const response = await fetch(url, options);
-                    if (response.ok) return response;
-                    if (response.status >= 400 && response.status < 500) throw new Error(`Client Error: ${response.status} ${response.statusText}`);
+                    if (response.ok) {
+                        return response;
+                    }
+                    if (response.status >= 400 && response.status < 500) {
+                        const errorText = await response.text();
+                        throw new Error(`Client Error: ${response.status} - ${errorText}`);
+                    }
+                    lastError = new Error(`Server Error: ${response.status}`);
                 } catch (error) {
-                    if (i === maxRetries - 1) throw error;
-                    console.warn(`Request failed. Retrying in ${delay}ms...`);
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                    delay *= 2;
+                    lastError = error;
+                    if (error.message.startsWith('Client Error')) {
+                        throw error; 
+                    }
                 }
+                
+                console.warn(`Request failed. Retrying in ${delay}ms... (Attempt ${i + 1}/${maxRetries})`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                delay *= 2;
             }
+
+            throw lastError || new Error("API request failed after all retries.");
         }
 
         async function callGeminiAPI(userQuery, systemPrompt) {
@@ -275,6 +353,7 @@
                 // Load content if it's the first time viewing the tab
                 if (target === 'calendar' && financialEvents.length === 0) fetchFinancialEvents();
                 if (target === 'screener' && screenerResults.innerHTML.trim() === '') fetchStockData();
+                if (target === 'predictions' && predictionsContainer.innerHTML.trim() === '') fetchPredictions();
             });
         });
 
@@ -347,7 +426,7 @@
         async function fetchFinancialEvents() {
             calendarLoader.style.display = 'flex';
             calendarErrorMessage.classList.add('hidden');
-            const USER_QUERY_CALENDAR = `List the most important global financial events for the next 90 days, including FOMC meetings, major economic data releases (like CPI, GDP), and key corporate earnings reports. For each, provide the date (in YYYY-MM-DD format), a short description, and an event type (e.g., 'Central Bank', 'Economics', 'Earnings'). Format as a valid JSON array.`;
+            const USER_QUERY_CALENDAR = `List the most important global financial events for the current month and the next two full months. Include FOMC meetings, major economic data releases (like CPI, GDP), and key corporate earnings reports. For each, provide the date (in YYYY-MM-DD format), a short description, and an event type (e.g., 'Central Bank', 'Economics', 'Earnings'). Format as a valid JSON array.`;
             try {
                 const candidate = await callGeminiAPI(USER_QUERY_CALENDAR, "You are a financial data provider.");
                 financialEvents = parseJsonResponse(candidate.content.parts[0].text);
@@ -373,7 +452,7 @@
             const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
             dayHeaders.forEach(day => {
                 const dayEl = document.createElement('div');
-                dayEl.className = 'font-bold text-sm text-gray-600 dark:text-gray-400';
+                dayEl.className = 'font-bold text-sm text-gray-600 dark:text-gray-400 py-2';
                 dayEl.textContent = day;
                 calendarGrid.appendChild(dayEl);
             });
@@ -393,6 +472,7 @@
                 });
 
                 if (dayEvents.length > 0) {
+                    dayEl.classList.add('cursor-pointer', 'hover:bg-gray-100', 'dark:hover:bg-gray-700', 'transition-colors');
                     const eventsList = document.createElement('ul');
                     eventsList.className = 'text-xs mt-1 space-y-1';
                     dayEvents.forEach(event => {
@@ -408,6 +488,29 @@
                         eventsList.appendChild(eventItem);
                     });
                     dayEl.appendChild(eventsList);
+
+                    dayEl.addEventListener('click', () => {
+                        modalTitle.textContent = `Events for ${new Date(year, month, day).toLocaleDateString()}`;
+                        modalBody.innerHTML = '';
+                        dayEvents.forEach(event => {
+                            let color = 'bg-gray-400';
+                            if (event.type?.toLowerCase().includes('bank')) color = 'bg-red-500';
+                            if (event.type?.toLowerCase().includes('earn')) color = 'bg-blue-500';
+                            if (event.type?.toLowerCase().includes('econ')) color = 'bg-green-500';
+
+                            const eventDetailEl = document.createElement('div');
+                            eventDetailEl.className = 'p-3 rounded-lg shadow-sm border dark:border-gray-600';
+                            eventDetailEl.innerHTML = `
+                                <div class="flex items-center gap-3">
+                                    <span class="flex-shrink-0 w-3 h-3 rounded-full ${color}"></span>
+                                    <p class="font-semibold text-gray-800 dark:text-gray-200">${event.description}</p>
+                                </div>
+                                <p class="text-sm text-gray-500 dark:text-gray-400 ml-6">Type: ${event.type || 'General'}</p>
+                            `;
+                            modalBody.appendChild(eventDetailEl);
+                        });
+                        calendarModal.classList.remove('hidden');
+                    });
                 }
                 calendarGrid.appendChild(dayEl);
             }
@@ -421,6 +524,8 @@
             currentDate.setMonth(currentDate.getMonth() + 1);
             renderCalendar();
         });
+        modalCloseBtn.addEventListener('click', () => calendarModal.classList.add('hidden'));
+
         
         // --- Stock Screener Logic ---
         async function fetchStockData(filters = {}) {
@@ -523,8 +628,9 @@
                     "evEbit": "...",
                     "eps": "..."
                   },
-                  "valuationAnalysis": "A paragraph analyzing its current valuation (P/E, etc.) compared to its historical trading levels (e.g., 5-year average).",
-                  "valuationIndicator": "Based on your analysis, classify the stock as 'Green' (undervalued), 'Yellow' (fairly valued), or 'Red' (overvalued)."
+                  "valuationAnalysis": "A paragraph analyzing its current valuation compared to its historical trading levels (e.g., 5-year average).",
+                  "valuationIndicator": "Based on your analysis, classify the stock as 'Green' (undervalued), 'Yellow' (fairly valued), or 'Red' (overvalued).",
+                  "valuationMultiplesUsed": "A short sentence explaining which key multiples (e.g., P/E Ratio, EV/EBITDA) were primarily considered for the valuation indicator."
                 }
             `;
 
@@ -566,6 +672,9 @@
 
                         <h3 class="text-xl font-semibold mt-6 mb-2">Valuation Analysis</h3>
                         <p class="text-gray-600 dark:text-gray-300">${data.valuationAnalysis}</p>
+
+                        <h3 class="text-xl font-semibold mt-6 mb-2">Basis for Valuation</h3>
+                        <p class="text-sm text-gray-600 dark:text-gray-300 italic">${data.valuationMultiplesUsed || 'Analysis based on a combination of standard financial multiples.'}</p>
                     </div>
 
                     <!-- Right Column: Key Figures & Indicator -->
@@ -604,12 +713,69 @@
                 searchCompanyBtn.click();
             }
         });
+        
+        // --- Predictions Logic ---
+        async function fetchPredictions() {
+            predictionsLoader.style.display = 'flex';
+            predictionsErrorMessage.classList.add('hidden');
+            predictionsContainer.innerHTML = '';
+            
+            const USER_QUERY_PREDICTIONS = `Analyze the current global financial markets, considering recent trends, economic data, and geopolitical events. Provide a brief market outlook for the next quarter. Structure the response as a single JSON object with two keys: "marketOutlook" (a paragraph summarizing the overall sentiment and potential direction) and "keyFactors" (an array of 3-4 bullet points detailing the main drivers behind your outlook).`;
+            
+            try {
+                const candidate = await callGeminiAPI(USER_QUERY_PREDICTIONS, "You are a senior market strategist providing forward-looking analysis.");
+                const predictionData = parseJsonResponse(candidate.content.parts[0].text);
+                displayPredictions(predictionData);
+            } catch (error) {
+                console.error("Error fetching predictions:", error);
+                predictionsErrorMessage.innerHTML = `<strong>Error:</strong> Could not fetch market predictions.`;
+                predictionsErrorMessage.classList.remove('hidden');
+            } finally {
+                predictionsLoader.style.display = 'none';
+            }
+        }
+        
+        function displayPredictions(data) {
+             let keyFactorsHtml = data.keyFactors.map(factor => `<li class="flex items-start"><span class="text-blue-500 mr-2">&#10148;</span><span>${factor}</span></li>`).join('');
+        
+            predictionsContainer.innerHTML = `
+                <h2 class="text-2xl font-bold mb-4">Market Outlook: Next Quarter</h2>
+                <p class="text-gray-600 dark:text-gray-300 mb-6">${data.marketOutlook}</p>
+                <h3 class="text-xl font-semibold mb-3">Key Factors to Watch</h3>
+                <ul class="space-y-2 text-gray-600 dark:text-gray-300">${keyFactorsHtml}</ul>
+            `;
+        }
 
+        // --- Daily Briefing Logic ---
+        async function fetchDailyBriefing() {
+            briefingModal.classList.remove('hidden');
+            const USER_QUERY_BRIEFING = `What is the single most important financial news story in the world right now that everyone should know about? Provide a headline, a detailed summary (2-3 paragraphs), and explain its potential impact on the markets. Format this as a single JSON object with keys: "headline", "summary", and "impact".`;
+            try {
+                const candidate = await callGeminiAPI(USER_QUERY_BRIEFING, SYSTEM_PROMPT_ANALYST);
+                const briefingData = parseJsonResponse(candidate.content.parts[0].text);
+                
+                briefingBody.innerHTML = `
+                    <h3 class="text-xl font-bold mb-2">${briefingData.headline}</h3>
+                    <p class="text-base mb-3">${briefingData.summary.replace(/\n/g, '<br><br>')}</p>
+                    <p class="text-base font-semibold"><strong>Potential Impact:</strong> ${briefingData.impact}</p>
+                `;
+                
+                briefingLoader.style.display = 'none';
+                briefingContent.classList.remove('hidden');
+            } catch (error) {
+                console.error("Error fetching daily briefing:", error);
+                // If briefing fails, just close the modal so the user can use the site
+                briefingModal.classList.add('hidden');
+            }
+        }
+
+        briefingCloseBtn.addEventListener('click', () => briefingModal.classList.add('hidden'));
 
         // --- Initial Load ---
         document.addEventListener('DOMContentLoaded', () => {
             document.querySelector('.tab[data-tab="news"]').click(); // Activate the news tab by default
             fetchFinancialNews();
+            fetchDailyBriefing();
         });
     </script>
 </body>
